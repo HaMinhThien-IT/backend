@@ -8,7 +8,7 @@ export let products:Product[]=[
     {
         id : '1',
         image : 'https://img.websosanh.vn/v10/users/review/images/ylc9u3alijtph/iphone-13-mini-xanh.jpg?compress=85',
-        name : ' Phone ',
+        name : ' Phone',
         price : 90000000
     },
     {
