@@ -2,8 +2,11 @@
 import express, { Request, Response } from 'express'
 const { Client } = require('pg');
 import { ListProps } from './model/ListProps';
+import { Cart } from './model/Cart';
 import { Order } from './model/Order';
 import { Product } from './model/Product'
+import { v4 as uuidv4 } from 'uuid';
+import { OrderProps } from './model/CartProps';
 var bodyParser = require('body-parser');
 
 const app = express()
@@ -13,7 +16,6 @@ app.use(express.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(bodyParser.json())
 var cors = require('cors')
-let dataTemp: Product[];
 
 app.use(cors())
 
@@ -31,6 +33,14 @@ async function products() {
     const now = await client.query('select * from product ');
     await client.end();
     return now.rows;
+}
+
+async function listCart() {
+    const client = new Client(credentials);
+    await client.connect();
+    const listCart = await client.query('select product.image, product."name" ,order_product.price ,order_product.quantity from order_product  join product on product.id = order_product.id join orders on orders.order_id = order_product.order_id ');
+    await client.end();
+    return listCart.rows;
 }
 
 
@@ -99,25 +109,25 @@ app.delete('/product/:id', async (req: Request, res: Response) => {
 app.post('/product/filter', async (req: Request, res: Response) => {
 
     const listProps: ListProps = req.body;
-    const { page, pageSize, sort, search } = listProps 
+    const { page, pageSize, sort, search } = listProps
     const client = new Client(credentials);
     await client.connect();
     let countProduct;
-    let product: Product[]=[];
+    let product: Product[] = [];
     if (search != null && search != "") {
         const now = await client.query(`SELECT * FROM product where name ilike '%${search}%' LIMIT ${pageSize} OFFSET (${page} - 1) * ${pageSize}`)
-        countProduct = await client.query(`SELECT count(*) FROM product where name ilike '%${search}%' LIMIT ${pageSize} OFFSET (${page} - 1) * ${pageSize}`) 
-        product = now.rows       
-    }else{      
+        countProduct = await client.query(`SELECT count(*) FROM product where name ilike '%${search}%' LIMIT ${pageSize} OFFSET (${page} - 1) * ${pageSize}`)
+        product = now.rows
+    } else {
         const now = await client.query(`SELECT * FROM product LIMIT ${pageSize} OFFSET (${page} - 1) * ${pageSize}`)
         countProduct = await client.query(`SELECT count(*)  FROM product `)
-        product = now.rows  
-        
+        product = now.rows
+
     }
 
     let totalPage = Number(countProduct.rows[0].count) % pageSize;
-    
-    
+
+
     if (totalPage > 0) {
         totalPage = (Number(countProduct.rows[0].count) / pageSize) + 1
     } else {
@@ -126,57 +136,9 @@ app.post('/product/filter', async (req: Request, res: Response) => {
     let arr = [];
     for (let i = 0; i < totalPage - 1; i++) {
         arr.push(i)
-    } 
-    
-   return res.json({ product, arr});
+    }
 
-
-
-
-
-    // return res.json({now,rows,arr});
-    // const listProduct: Product[] = await products()
-    // if (search !== null) {
-    //     let product = listProduct.filter(item => item.name.includes(search))
-    //     let start = (page - 1) * pageSize
-    //     let end = page * pageSize
-    //     let productPage = product.slice(start, end)
-
-    //     let totalPage = product.length % pageSize
-    //     if (totalPage > 0) {
-    //         totalPage = (product.length / pageSize) + 1
-
-    //     } else {
-    //         totalPage = (product.length / pageSize)
-    //     }
-    //     let arr = [];
-    //     for (let i = 0; i < totalPage - 1; i++) {
-    //         arr.push(i)
-    //     }
-    //     console.log(arr);
-
-    //     return res.json({ productPage, arr })
-    // } else {
-
-    //     let start = (page - 1) * pageSize
-    //     let end = page * pageSize
-    //     let productPage = listProduct.slice(start, end)
-
-    //     let totalPage = listProduct.length % pageSize
-    //     if (totalPage > 0) {
-    //         totalPage = (listProduct.length / pageSize) + 1
-
-    //     } else {
-
-    //     }
-    //     let arr = [];
-    //     for (let i = 0; i < totalPage - 1; i++) {
-    //         arr.push(i)
-    //     }
-    //     return res.json({ productPage, arr })
-    // }
-
-
+    return res.json({ product, arr });
 })
 
 
@@ -203,11 +165,91 @@ app.post('/order/checkout', (req: Request, res: Response) => {
 app.get('/order/checkout/list', (req: Request, res: Response) => {
     return res.json(order)
 })
-// sql
-
 app.get('/test', (req: Request, res: Response) => {
     console.log(products);
 })
+
+app.post('/order/:id', (async (req: Request, res: Response) => {
+    const client = new Client(credentials);
+    await client.connect();
+
+    const orderProps: OrderProps = req.body;
+    const { price, quantity } = orderProps
+    console.log(price, quantity);
+
+    const CheckID = await client.query(`select order_id  from orders where user_id = 3  and isTemporary = false`)
+    let order_idx = CheckID.rows[0]
+    let order_product_id = uuidv4();
+    if (order_idx != undefined) {
+        client.query(`INSERT INTO public.order_product (order_id, id, quantity, price,order_product_id) VALUES('${order_idx.order_id}', '${req.params.id}', ${quantity}, ${price},'${order_product_id}');`)
+    } else {
+        
+        let id_order = uuidv4();
+       
+        client.query(`INSERT INTO public.orders(order_id, user_id, time_order, isTemporary) VALUES('${id_order}', 3, '1-1-2029', false);`)
+        client.query(`INSERT INTO public.order_product (order_id, id, quantity, price,order_product_id) VALUES('${id_order}', '${req.params.id}', ${quantity}, ${price},'${order_product_id}');`)
+    }
+}))
+
+app.get('/listCart', (async (req: Request, res: Response) => {
+    const client = new Client(credentials);
+    await client.connect();
+    let listCart = await client.query(`
+    select order_product.order_product_id ,product.image, product."name" ,order_product.price ,order_product.quantity from order_product  join product on product.id = order_product.id join orders on orders.order_id = order_product.order_id 
+        where user_id = 3`)
+    return res.json(listCart.rows)
+}))
+
+app.post('/plus', ( async (req:Request,res:Response)=>{
+    const orderProps: OrderProps = req.body;
+    const { order_product_id } = orderProps
+    const client = new Client(credentials);
+    await client.connect();
+    await client.query(`UPDATE public.order_product
+    SET  quantity=quantity + 1 where  order_product_id = '${order_product_id}';
+    `)   
+    console.log(`UPDATE public.order_product
+        SET  quantity=quantity + 1 where  order_product_id = '${order_product_id}';
+        `);
+    
+
+    console.log(req.body);
+    
+    let listCart = await client.query(`select order_product.order_product_id, product.image, product."name" ,order_product.price ,order_product.quantity from order_product  join product on product.id = order_product.id join orders on orders.order_id = order_product.order_id 
+    where user_id = 3`)
+    return res.json(listCart.rows)
+}))
+
+app.post('/minus', ( async (req:Request,res:Response)=>{
+    const orderProps: OrderProps = req.body;
+    const { order_product_id } = orderProps
+    const client = new Client(credentials);
+    await client.connect();
+    await client.query(`UPDATE public.order_product
+    SET  quantity=quantity - 1 where  order_product_id = '${order_product_id}';
+    `)   
+    console.log(`UPDATE public.order_product
+        SET  quantity=quantity + 1 where  order_product_id = '${order_product_id}';
+        `);
+    
+    let listCart = await client.query(`select order_product.order_product_id, product.image, product."name" ,order_product.price ,order_product.quantity from order_product  join product on product.id = order_product.id join orders on orders.order_id = order_product.order_id 
+    where user_id = 3`)
+    return res.json(listCart.rows)
+}))
+
+app.post('/delete',(async (req:Request,res:Response)=>{
+    const orderProps: OrderProps = req.body;
+    const { order_product_id } = orderProps
+    const client = new Client(credentials);
+    await client.connect();
+    await client.query(`DELETE FROM public.order_product
+    WHERE  order_product_id='${order_product_id}'
+    `) 
+    let listCart = await client.query(`select order_product.order_product_id, product.image, product."name" ,order_product.price ,order_product.quantity from order_product  join product on product.id = order_product.id join orders on orders.order_id = order_product.order_id 
+    where user_id = 3`)
+    return res.json(listCart.rows)  
+}))
+
 app.listen(3000, () => {
     console.log("Port: 3000");
 })
