@@ -3,5 +3,6 @@ export interface OrderProps {
     quantity:number,
     id:number,
     order_product_id:string,
-    user_id : number
+    user_id : number,
+    order_id :string
 }

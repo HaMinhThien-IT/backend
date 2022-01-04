@@ -8,7 +8,8 @@ import { Product } from './model/Product'
 import { v4 as uuidv4 } from 'uuid';
 import { OrderProps } from './model/CartProps';
 import { OrderWithDetail } from './model/Order';
-import {QueryResult} from 'pg'
+import { QueryResult } from 'pg'
+import { BuyUser } from './model/BuyUser';
 var bodyParser = require('body-parser');
 
 const app = express()
@@ -108,40 +109,7 @@ app.delete('/product/:id', async (req: Request, res: Response) => {
     return res.json(listProduct)
 })
 
-app.post('/product/filter', async (req: Request, res: Response) => {
 
-    const listProps: ListProps = req.body;
-    const { page, pageSize, sort, search } = listProps
-    const client = new Client(credentials);
-    await client.connect();
-    let countProduct;
-    let product: Product[] = [];
-    if (search != null && search != "") {
-        const now = await client.query(`SELECT * FROM product where name ilike '%${search}%' LIMIT ${pageSize} OFFSET (${page} - 1) * ${pageSize}`)
-        countProduct = await client.query(`SELECT count(*) FROM product where name ilike '%${search}%' LIMIT ${pageSize} OFFSET (${page} - 1) * ${pageSize}`)
-        product = now.rows
-    } else {
-        const now = await client.query(`SELECT * FROM product LIMIT ${pageSize} OFFSET (${page} - 1) * ${pageSize}`)
-        countProduct = await client.query(`SELECT count(*)  FROM product `)
-        product = now.rows
-
-    }
-
-    let totalPage = Number(countProduct.rows[0].count) % pageSize;
-
-
-    if (totalPage > 0) {
-        totalPage = (Number(countProduct.rows[0].count) / pageSize) + 1
-    } else {
-        totalPage = Number(countProduct.rows[0].count) / pageSize
-    }
-    let arr = [];
-    for (let i = 0; i < totalPage - 1; i++) {
-        arr.push(i)
-    }
-
-    return res.json({ product, arr });
-})
 
 
 
@@ -149,24 +117,7 @@ app.get('/admin', async (req: Request, res: Response) => {
     const listProduct: Product[] = await products()
     return res.json(listProduct)
 })
-// let order: Order[] = [
-//     {
-//         product: { id: '', name: '', price: 0, image: '', quantity: 0 },
-//         name: '', address: '', email: '', createAt: 0, numberPhone: 0
-//     }
-// ]
-// order = []
 
-// app.post('/order/checkout', (req: Request, res: Response) => {
-//     let objOrder: Order;
-//     objOrder = req.body.ItemOrder
-//     if (objOrder !== null) {
-//         order.push(objOrder)
-//     }
-// })
-// app.get('/order/checkout/list', (req: Request, res: Response) => {
-//     return res.json(order)
-// })
 app.get('/test', (req: Request, res: Response) => {
     console.log(products);
 })
@@ -176,7 +127,7 @@ app.post('/order/:id', (async (req: Request, res: Response) => {
     await client.connect();
 
     const orderProps: OrderProps = req.body;
-    const { price, quantity,user_id } = orderProps
+    const { price, quantity, user_id } = orderProps
     console.log(price, quantity);
 
     const CheckID = await client.query(`select order_id  from orders where user_id = ${user_id}  and isTemporary = false`)
@@ -199,20 +150,20 @@ app.post('/order/:id', (async (req: Request, res: Response) => {
 
         let id_order = uuidv4();
 
-        client.query(`INSERT INTO public.orders(order_id, user_id, time_order, isTemporary) VALUES('${id_order}', 3, '1-1-2029', false);`)
+        client.query(`INSERT INTO public.orders(order_id, user_id, time_order, isTemporary) VALUES('${id_order}', ${user_id}, '1-1-2029', false);`)
         client.query(`INSERT INTO public.order_product (order_id, id, quantity, price,order_product_id) VALUES('${id_order}', '${req.params.id}', ${quantity}, ${price},'${order_product_id}');`)
     }
-}))
+    return res.json(1)
+}
+))
 
 app.post('/listCart', (async (req: Request, res: Response) => {
     const orderProps: OrderProps = req.body;
     const { user_id } = orderProps
-    console.log(req.body.user_id);
-    
     const client = new Client(credentials);
     await client.connect();
     let listCart = await client.query(`
-    select order_product.order_product_id ,product.image, product."name" ,order_product.price ,order_product.quantity from order_product  join product on product.id = order_product.id join orders on orders.order_id = order_product.order_id 
+    select orders.order_id, order_product.order_product_id ,product.image, product."name" ,order_product.price ,order_product.quantity from order_product  join product on product.id = order_product.id join orders on orders.order_id = order_product.order_id 
     where user_id = ${user_id} and isTemporary = false`)
     return res.json(listCart.rows)
 }))
@@ -260,66 +211,115 @@ app.post('/delete', (async (req: Request, res: Response) => {
     return res.json(listCart.rows)
 }))
 
+
+app.post('/checkout', async (req: Request, res: Response) => {
+   
+    let user: BuyUser  = req.body.user
+    console.log(user.nameUser,user.address,user.email,user.user_id,user.numberPhone);
+    
+    const client = new Client(credentials);
+    await client.connect();
+    await client.query(`UPDATE public.buyuser SET "nameUser"='${user.nameUser}', "numberPhone"='${user.numberPhone}', address='${user.address}', email='${user.email}' WHERE user_id=${user.user_id}
+ `)
+    console.log(`UPDATE public.buyuser SET "nameUser"='${user.nameUser}', "numberPhone"='${user.numberPhone}', address='${user.address}', email='${user.email}' WHERE user_id=${user.user_id}`);
+
+    await client.query(`UPDATE public.orders SET  istemporary=true WHERE order_id='${req.body.order_id}'`)
+    console.log(`UPDATE public.orders SET  istemporary=true WHERE order_id='${req.body.order_id}'`);
+     
+})           
+
+app.post('/product/filter', async (req: Request, res: Response) => {
+
+    const listProps: ListProps = req.body;
+    const { page, pageSize, sort, search } = listProps
+    const client = new Client(credentials);
+    await client.connect();
+    let countProduct;
+    let product: Product[] = [];
+    if (search != null && search != "") {
+        const now = await client.query(`SELECT * FROM product where name ilike '%${search}%' LIMIT ${pageSize} OFFSET (${page} - 1) * ${pageSize}`)
+        countProduct = await client.query(`SELECT count(*) FROM product where name ilike '%${search}%' LIMIT ${pageSize} OFFSET (${page} - 1) * ${pageSize}`)
+        product = now.rows
+    } else {
+        const now = await client.query(`SELECT * FROM product LIMIT ${pageSize} OFFSET (${page} - 1) * ${pageSize}`)
+        countProduct = await client.query(`SELECT count(*)  FROM product `)
+        product = now.rows
+
+    }
+
+    let totalPage = Number(countProduct.rows[0].count) % pageSize;
+
+
+    if (totalPage > 0) {
+        totalPage = (Number(countProduct.rows[0].count) / pageSize) + 1
+    } else {
+        totalPage = Number(countProduct.rows[0].count) / pageSize
+    }
+    let arr = [];
+    for (let i = 0; i < totalPage - 1; i++) {
+        arr.push(i)
+    }
+
+    return res.json({ product, arr });
+})
+
 app.get('/getListOrder/:user_id', async (req: Request, res: Response) => {
     const client = new Client(credentials);
     await client.connect();
-    let listOrderUser:QueryResult = await client.query(`select * from order_product join orders on order_product.order_id  = orders.order_id join product on product.id  = order_product.id  join buyuser  on buyuser.user_id  = orders.user_id where buyuser.user_id = ${req.params.user_id} and isTemporary = true
+    let listOrderUser: QueryResult = await client.query(`select * from order_product join orders on order_product.order_id  = orders.order_id join product on product.id  = order_product.id  join buyuser  on buyuser.user_id  = orders.user_id where buyuser.user_id = ${req.params.user_id} and isTemporary = true
     `)
     let getAll = listOrderUser.rows
-    
-    let listOrder:OrderWithDetail[] =[] 
-    let allId:string[] = []
-    getAll.map(item=>allId.push(item.order_id))
-    allId=Array.from(new Set(allId))
-    console.log(allId);
-    allId.map(order_id=>{
-        const order:OrderWithDetail  ={
-            order_id : order_id,
-            user_id : Number(req.params.user_id),
-            isTemporary : true,
-            time_order : 2-2-2002,
-            orderProducts : [],
-            user :{
-                user_id : 3,
-                nameUser : '',
-                numberPhone : '',
-                address : '',
-                email : ''
+
+    let listOrder: OrderWithDetail[] = []
+    let allId: string[] = []
+    getAll.map(item => allId.push(item.order_id))
+    allId = Array.from(new Set(allId))
+    allId.map(order_id => {
+        const order: OrderWithDetail = {
+            order_id: order_id,
+            user_id: Number(req.params.user_id),
+            isTemporary: true,
+            time_order: 2 - 2 - 2002,
+            orderProducts: [],
+            user: {
+                user_id: 3,
+                nameUser: '',
+                numberPhone: '',
+                address: '',
+                email: ''
             }
         }
-        getAll.map(itemTemp=>{
-            if(itemTemp.order_id == order_id){
-
-                
+        getAll.map(itemTemp => {
+            if (itemTemp.order_id == order_id) {
                 order.order_id = itemTemp.order_id,
-                order.user_id = itemTemp.user_id ,
-                order.isTemporary = itemTemp.istemporary,
-                order.time_order = itemTemp.time_order,
-                order.orderProducts.push({
-                    id: itemTemp.id,
-                    order_id : itemTemp.order_id,
-                    order_product_id : itemTemp.order_product_id,
-                    price : itemTemp.price,
-                    quantity : itemTemp.quantity,
-                    product :{
-                        id:itemTemp.id,
-                        name:itemTemp.name,
-                        price:itemTemp.price,
-                        image:itemTemp.image
-                    }
-                })
-               order.user = {
-                   user_id:itemTemp.user_id,
-                   nameUser:itemTemp.nameUser,
-                   numberPhone:itemTemp.numberPhone,
-                   address:itemTemp.address,
-                   email:itemTemp.email
-               }
+                    order.user_id = itemTemp.user_id,
+                    order.isTemporary = itemTemp.istemporary,
+                    order.time_order = itemTemp.time_order,
+                    order.orderProducts.push({
+                        id: itemTemp.id,
+                        order_id: itemTemp.order_id,
+                        order_product_id: itemTemp.order_product_id,
+                        price: itemTemp.price,
+                        quantity: itemTemp.quantity,
+                        product: {
+                            id: itemTemp.id,
+                            name: itemTemp.name,
+                            price: itemTemp.price,
+                            image: itemTemp.image
+                        }
+                    })
+                order.user = {
+                    user_id: itemTemp.user_id,
+                    nameUser: itemTemp.nameUser,
+                    numberPhone: itemTemp.numberPhone,
+                    address: itemTemp.address,
+                    email: itemTemp.email
+                }
             }
         })
         listOrder.push(order)
-       
-        
+
+
     })
     return res.json(listOrder)
 })
