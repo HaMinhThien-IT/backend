@@ -6,3 +6,7 @@ export interface OrderProps {
     user_id : number,
     order_id :string
 }
+export interface PageOrder{
+    page: number
+    pageSize: number
+}

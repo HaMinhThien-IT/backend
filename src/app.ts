@@ -6,7 +6,7 @@ import { Cart } from './model/Cart';
 // import { Order } from './model/Order';
 import { Product } from './model/Product'
 import { v4 as uuidv4 } from 'uuid';
-import { OrderProps } from './model/CartProps';
+import { OrderProps, PageOrder } from './model/CartProps';
 import { OrderWithDetail } from './model/Order';
 import { QueryResult } from 'pg'
 import { BuyUser } from './model/BuyUser';
@@ -177,7 +177,7 @@ app.post('/plus', (async (req: Request, res: Response) => {
     SET  quantity=quantity + 1 where  order_product_id = '${order_product_id}';
     `)
     let listCart = await client.query(`select order_product.order_product_id, product.image, product."name" ,order_product.price ,order_product.quantity from order_product  join product on product.id = order_product.id join orders on orders.order_id = order_product.order_id 
-    where user_id = 3 and isTemporary = false`)
+    where user_id = 3 and isTemporary = false order by order_product.order_product_id`)
     return res.json(listCart.rows)
 }))
 
@@ -194,7 +194,7 @@ app.post('/minus', (async (req: Request, res: Response) => {
         `);
 
     let listCart = await client.query(`select order_product.order_product_id, product.image, product."name" ,order_product.price ,order_product.quantity from order_product  join product on product.id = order_product.id join orders on orders.order_id = order_product.order_id 
-    where user_id = 3 and isTemporary = false`)
+    where user_id = 3 and isTemporary = false order by order_product.order_product_id`)
     return res.json(listCart.rows)
 }))
 
@@ -263,11 +263,20 @@ app.post('/product/filter', async (req: Request, res: Response) => {
     return res.json({ product, arr });
 })
 
-app.get('/getListOrder/:user_id', async (req: Request, res: Response) => {
+app.post('/getListOrder/:user_id', async (req: Request, res: Response) => {
+    let pageSize = req.body.pageSize;
+    
     const client = new Client(credentials);
     await client.connect();
-    let listOrderUser: QueryResult = await client.query(`select * from order_product join orders on order_product.order_id  = orders.order_id join product on product.id  = order_product.id  join buyuser  on buyuser.user_id  = orders.user_id where buyuser.user_id = ${req.params.user_id} and isTemporary = true
+    let listOrderUser: QueryResult = await client.query(`select * from order_product join orders on order_product.order_id  = orders.order_id join product on product.id  = order_product.id  	
+    join buyuser  on buyuser.user_id  = orders.user_id where orders.order_id 
+    in (select order_id from  orders where user_id = ${req.params.user_id} and isTemporary = true  group by order_id   LIMIT ${req.body.pageSize} OFFSET (${req.body.page} - 1) * ${req.body.pageSize})    
     `)
+
+    let countPage = await client.query(`select order_id from  orders where user_id = 3 and isTemporary = true  group by order_id   
+    `)
+    await client.end()
+   
     let getAll = listOrderUser.rows
 
     let listOrder: OrderWithDetail[] = []
@@ -321,7 +330,22 @@ app.get('/getListOrder/:user_id', async (req: Request, res: Response) => {
 
 
     })
-    return res.json(listOrder)
+    let totalPageOrder = Number(countPage.rowCount) % pageSize
+   
+    if(totalPageOrder > 0){
+        totalPageOrder = Number(countPage.rowCount) / pageSize + 1
+    }else{
+        totalPageOrder = Number(countPage.rowCount) / pageSize 
+    }
+    console.log(totalPageOrder);
+    
+    let quantityPage =[];
+    for(let i = 1 ;i<=totalPageOrder;i++){
+        quantityPage.push(i)
+        
+    }
+
+    return res.json({listOrder,quantityPage})
 })
 
 app.listen(3000, () => {
