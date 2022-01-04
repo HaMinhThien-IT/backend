@@ -1,11 +1,14 @@
+import { BuyUser } from './BuyUser';
 import { Cart } from './Cart';
 
 
 export interface Order {
-    name : string,
-    numberPhone : number,
-    address : string,
-    email : string,
-    createAt: number,
-    product : Cart
+   order_id:string,
+   user_id : number,
+   time_order : number,
+   isTemporary :boolean
+}
+export interface OrderWithDetail extends Order{
+    orderProducts : Cart[],
+    user : BuyUser
 }
