@@ -5,3 +5,7 @@ export interface BuyUser{
     address : string,
     email : string
 }
+export interface PropsLogin {
+    email : string,
+    password : string
+}
