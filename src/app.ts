@@ -42,29 +42,12 @@ async function products() {
     return now.rows;
 }
 
-async function listCart() {
-    const client = new Client(credentials);
-    await client.connect();
-    const listCart = await client.query('select product.image, product."name" ,order_product.price ,order_product.quantity from order_product  join product on product.id = order_product.id join orders on orders.order_id = order_product.order_id ');
-    await client.end();
-    return listCart.rows;
-}
-
-
-
-
-// pagination
-
-
-
-
 app.get('/detail/:id', async (req: Request, res: Response) => {
     let id = String(req.params.id)
     const listProduct: Product[] = await products()
     let detail;
     listProduct.map((item, index) => item.id == id ? item = detail = listProduct
     [index] : '')
-    console.log(detail);
     return res.json(detail)
 })
 
@@ -76,7 +59,18 @@ app.post('/login', async (req: Request, res: Response) => {
     const { email, password } = loginProps
     const client = new Client(credentials);
     await client.connect();
-   
+    let userBuyer = await client.query(`select user_id from buyuser b where email ='${email}' and "password" ='${password}' `)
+    await client.end()
+    if (userBuyer.rows[0] != undefined) {
+        const accSessToken = jwt.sign(userBuyer.rows[0], process.env.ACCESS_TOKEN_SECRET, { expiresIn: '80s' })
+        res.header('jwt', accSessToken).send(accSessToken)
+    } else {
+        const response = {
+            status: 404
+        }
+        return res.status(404).json(response)
+    }
+
 })
 
 
