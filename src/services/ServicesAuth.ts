@@ -3,7 +3,7 @@ import { pool } from '../ConnectDB'
 const jwt = require("jsonwebtoken")
 class ServicesAuth {
     getInfoMe = async (user_id:number) => {
-      let infoMe = await pool.query(`select "nameUser", email from buyuser b  where  user_id = ${user_id}`)
+      let infoMe = await pool.query(`select "nameUser", email,user_id from buyuser b  where  user_id = ${user_id}`)
        return infoMe.rows[0]
     }
 }

@@ -18,7 +18,7 @@ function authenToken(req: Request, res: Response, netx: NextFunction) {
 //product
 router.get('/admin',authenToken, productController.getListProductWithAdmin)
 router.post('/product/filter',authenToken, productController.getListProductWithPagination)
-router.post('/filter/:name', productController.getProductOnFilter)
+router.post('/filter/:name',authenToken, productController.getProductOnFilter)
 router.post('/add', productController.addNewProduct)
 router.delete('/product/:id',productController.deleteWithProduct)
 router.put('/edit/:id',productController.editProductById)
@@ -28,11 +28,10 @@ router.put('/edit/:id',productController.editProductById)
 router.post('/getListOrder/:user_id',orderProductController.getListOrder)
 router.post('/checkout',orderProductController.checkout)
 router.post('/order/:id',orderProductController.order)
-router.post('/listCart',orderProductController.listCart)
+router.post('/listCart',authenToken,orderProductController.listCart)
 router.post('/plus',orderProductController.plusQuantity)
 router.post('/minus',orderProductController.minusQuantity)
 router.post('/delete',orderProductController.deleteCart)
-
 
 
 // auth

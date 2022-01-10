@@ -62,7 +62,7 @@ app.post('/login', async (req: Request, res: Response) => {
     let userBuyer = await client.query(`select user_id from buyuser b where email ='${email}' and "password" ='${password}' `)
     await client.end()
     if (userBuyer.rows[0] != undefined) {
-        const accSessToken = jwt.sign(userBuyer.rows[0], process.env.ACCESS_TOKEN_SECRET, { expiresIn: '80s' })
+        const accSessToken = jwt.sign(userBuyer.rows[0], process.env.ACCESS_TOKEN_SECRET, { expiresIn: '40s' })
         res.header('jwt', accSessToken).send(accSessToken)
     } else {
         const response = {

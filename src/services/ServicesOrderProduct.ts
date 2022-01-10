@@ -114,31 +114,31 @@ class ServicesOrderProduct {
         let listCart = await pool.query(`
     select orders.order_id, order_product.order_product_id ,product.image, product."name" ,order_product.price ,order_product.quantity from order_product  join product on product.id = order_product.id join orders on orders.order_id = order_product.order_id 
     where user_id = ${user_id} and isTemporary = false`)
-    return listCart.rows
+        return listCart.rows
     }
-    plusQuantity = async (order_product_id:string)=>{
+    plusQuantity = async (order_product_id: string,user_id:number) => {
         await pool.query(`UPDATE public.order_product
         SET  quantity=quantity + 1 where  order_product_id = '${order_product_id}';
         `)
         let listCart = await pool.query(`select order_product.order_product_id, product.image, product."name" ,order_product.price ,order_product.quantity from order_product  join product on product.id = order_product.id join orders on orders.order_id = order_product.order_id 
-        where user_id = 3 and isTemporary = false order by order_product.order_product_id`)
+        where user_id = ${user_id} and isTemporary = false`)
         return listCart.rows
     }
-    minusQuantity = async(order_product_id:string)=>{
+    minusQuantity = async (order_product_id: string,user_id:number) => {
         await pool.query(`UPDATE public.order_product
         SET  quantity=quantity - 1 where  order_product_id = '${order_product_id}';
         `)
-    
+
         let listCart = await pool.query(`select order_product.order_product_id, product.image, product."name" ,order_product.price ,order_product.quantity from order_product  join product on product.id = order_product.id join orders on orders.order_id = order_product.order_id 
-        where user_id = 3 and isTemporary = false order by order_product.order_product_id`)
+        where user_id = ${user_id} and isTemporary = false`)
         return listCart.rows
     }
-    deleteCart =async(order_product_id:string)=>{
+    deleteCart = async (order_product_id: string,user_id:number) => {
         await pool.query(`DELETE FROM public.order_product
         WHERE  order_product_id='${order_product_id}'
         `)
         let listCart = await pool.query(`select order_product.order_product_id, product.image, product."name" ,order_product.price ,order_product.quantity from order_product  join product on product.id = order_product.id join orders on orders.order_id = order_product.order_id 
-        where user_id = 3 and isTemporary = false`)
+        where user_id = ${user_id} and isTemporary = false`)
         return listCart.rows
     }
 }

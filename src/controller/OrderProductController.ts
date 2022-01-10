@@ -23,18 +23,18 @@ class OrderProductController {
     }
     plusQuantity = async (req: Request, res: Response) => {
         const orderProps: OrderProps = req.body;
-        const { order_product_id } = orderProps
-        res.json(await servicesOrderProduct.plusQuantity(order_product_id))
+        const { order_product_id ,user_id} = orderProps
+        res.json(await servicesOrderProduct.plusQuantity(order_product_id,user_id))
     }
    minusQuantity = async (req: Request, res: Response) => {
-        const orderProps: OrderProps = req.body;
-        const { order_product_id } = orderProps
-        res.json(await servicesOrderProduct.minusQuantity(order_product_id))
+    const orderProps: OrderProps = req.body;
+    const { order_product_id ,user_id} = orderProps
+        res.json(await servicesOrderProduct.minusQuantity(order_product_id,user_id))
     }
     deleteCart = async (req: Request, res: Response) => {
         const orderProps: OrderProps = req.body;
-        const { order_product_id } = orderProps
-        res.json(await servicesOrderProduct.deleteCart(order_product_id))
+        const { order_product_id ,user_id} = orderProps
+        res.json(await servicesOrderProduct.deleteCart(order_product_id,user_id))
     }
 }
 export const orderProductController = new OrderProductController()
